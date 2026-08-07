@@ -1,4 +1,5 @@
-import { NextFunction, Request, Response } from "express";
+
+import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { Prisma } from "../../generated/prisma/client";
 import config from "../config";
@@ -16,7 +17,7 @@ export const globalErrorHandler = async (
 
 	let statusCode: number = httpStatus.INTERNAL_SERVER_ERROR;
 	let errorMessage = err.message || "Internal Server Error";
-	let errorName = err.name || "Internal Server Error";
+	const errorName = err.name || "Internal Server Error";
 	// let errorDetails = err.stack
 
 	if (err instanceof Prisma.PrismaClientValidationError) {
@@ -24,6 +25,7 @@ export const globalErrorHandler = async (
 		errorMessage = "You have provided incorrect field type or missing fields";
 	} else if (err instanceof Prisma.PrismaClientKnownRequestError) {
 		if (err.code === "P2002") {
+
 			(statusCode = httpStatus.BAD_REQUEST),
 				(errorMessage = "Duplicate Key Error");
 		} else if (err.code === "P2003") {
