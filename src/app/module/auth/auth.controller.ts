@@ -5,24 +5,23 @@ import { sendResponse } from "../../utils/sendResponse";
 import type { IRequestUser } from "./auth.interface";
 import { AuthService } from "./auth.service";
 import z from "zod";
+import { PatientValidation } from "./auth.validation";
 
-const patientRegistrationZodshema = z.object({
-	name: z.string(),
-	email: z.string().email(),
-	password: z.string().min(6),
-	patient: z.object({
-		contactNumber: z.string().optional(),
-	}).optional()
-});
 
 const registerPatient = catchAsync(async (req: Request, res: Response) => {
-	const payload = patientRegistrationZodshema.safeParse(req.body);
+	// const payload = PatientValidation.patientRegistrationZodshema.safeParse(req.body);
 
-	if (!payload.success) {
-		throw new Error(`Validation failed: ${payload.error.message}`);
-	}
+	// if (!payload.success) {
+	// 	let errorMessage = "";
+	// 	payload.error.issues.forEach((issue) => {
+	// 		errorMessage = errorMessage + issue.message;
+	// 	});
+	// 	throw new Error(errorMessage);
+	// }
 
-	const result = await AuthService.registerPatient(payload.data as any);
+	const payload = req.body;
+
+	const result = await AuthService.registerPatient(payload);
 
 	const { accessToken, refreshToken, user, patient } = result;
 
