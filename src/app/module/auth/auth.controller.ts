@@ -4,10 +4,25 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import type { IRequestUser } from "./auth.interface";
 import { AuthService } from "./auth.service";
+import z from "zod";
+
+const patientRegistrationZodshema = z.object({
+	name: z.string(),
+	email: z.string().email(),
+	password: z.string().min(6),
+	patient: z.object({
+		contactNumber: z.string().optional(),
+	}).optional()
+});
 
 const registerPatient = catchAsync(async (req: Request, res: Response) => {
-	const payload = req.body;
-	const result = await AuthService.registerPatient(payload);
+	const payload = patientRegistrationZodshema.safeParse(req.body);
+
+	if (!payload.success) {
+		throw new Error(`Validation failed: ${payload.error.message}`);
+	}
+
+	const result = await AuthService.registerPatient(payload.data as any);
 
 	const { accessToken, refreshToken, user, patient } = result;
 
