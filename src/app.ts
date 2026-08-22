@@ -26,25 +26,16 @@ app.use(cookieParser());
 
 app.use("/api/v1/auth", AuthRoutes);
 
-app.post("/zod", (req: Request, res: Response, next: NextFunction) => {
+app.post("/test", (req: Request, res: Response, next: NextFunction) => {
 
 	try{
-		const UserZodSchema = z.object({
-		name: z.string(),
-		age: z.number().optional(),
-		isVerified: z.boolean(),
-		books : z.array(z.string()),
-	})
 
-	const payload = req.body;
-
-	const validatedData = UserZodSchema.parse(payload);
-	console.log("Zod validation successful", validatedData);
+		
 
 	res.status(httpStatus.OK).json({
 		success: true,
 		message: "Zod validation successful",
-		data: validatedData
+		data: null,
 	});
 	} catch (error) {
 		console.log("Zod validation failed", error);
