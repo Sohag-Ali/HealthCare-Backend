@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import type { TokenPayload } from "google-auth-library";
 import type { JwtPayload, SignOptions } from "jsonwebtoken";
 import crypto from "crypto";
+import path from "path";
 import {
 	AuthProvider,
 	Role,
@@ -21,6 +22,8 @@ import type {
 	IRequestUser,
 } from "./auth.interface";
 import { redisClient } from "../../lib/redis";
+import { transporter } from "../../lib/nodemailer";
+import ejs from "ejs";
 
 
 const registerPatient = async (payload: IRegisterPatientPayload) => {
@@ -373,11 +376,39 @@ const forgetPassword =  async (payload: IForgetPasswordPayload) => {
 
 	const key = `forget-password-otp-${isUserExists.email}`;
 
+	const experirationTimeInSeconds = 60 * 5; // 5 minutes
+
 	await redisClient.set(key, otp, {
 		expiration : {
 			type: "EX",
-			value: 60 * 5, 
+			value: experirationTimeInSeconds, 
 		}
+	});
+
+	const templatePath = path.join(process.cwd(), "src/app/templates/forgot-password.ejs");
+
+	const html = await ejs.renderFile(
+		templatePath,
+		{
+			name: isUserExists.name,
+			 otp,
+			 expiration: experirationTimeInSeconds / 60, // Convert seconds to minutes
+
+		 }
+		// async (err, html) => {
+		// 	if (err) {
+		// 		console.error("Error rendering EJS template:", err);
+		// 		throw new Error("Failed to render email template");
+		// 	}
+		// }
+	);
+
+	await transporter.sendMail({
+		from: config.email_sender,
+		to: isUserExists.email,
+		subject: "Forget Password OTP",
+		// text: `Your OTP for forget password is ${otp}. It will expire in 5 minutes.`,
+		html: html,
 	});
 
 
@@ -436,6 +467,17 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 	});
 
 	await redisClient.del(key);
+
+	await transporter.sendMail({
+		from: config.email_sender,
+		to: isUserExists.email,
+		subject: "Password Change Successful",
+		// text: "Your password has been reset successfully.",
+		html: `
+			<h1>Password Change Successful</h1>
+			<p>Your password has been changed successfully.</p>
+		`,
+	});
 
 }
 
