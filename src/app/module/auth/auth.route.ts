@@ -12,33 +12,12 @@ const router = Router();
 
 
 router.post("/register",
-	// (req: Request, res: Response, next: NextFunction) => {
-	// 	try {
-
-	// 		const payload = req.body ?? {};
-
-	// 		const result = PatientValidation.patientRegistrationZodshema.safeParse(payload);
-
-	// 		if (!result.success) {
-	// 			// let errorMessage = "";
-	// 			// payload.error.issues.forEach((issue) => {
-	// 			// 	errorMessage = errorMessage + issue.message;
-	// 			// });
-	// 			console.log(result.error.issues);
-	// 			throw new Error(result.error.issues[0].message);
-	// 		}
-
-	// 		req.body = result.data;
-
-
-	// 		next();
-
-	// 	} catch (error) {
-	// 		next(error);
-	// 	}
-	// },
 	validateRequest(UserValidation.patientRegistrationZodshema),
 	AuthController.registerPatient);
+
+router.post("/verify-email",
+	validateRequest(UserValidation.patientEmailVerificationZodSchema),
+	AuthController.verifyPatientEmail);
 
 router.post("/login",
 	validateRequest(UserValidation.LoginZodSchema),
@@ -56,5 +35,5 @@ router.post("/forgot-password",
 router.post("/reset-password",
 	validateRequest(UserValidation.resetPasswordZodSchema),
 	AuthController.resetPassword);
-	
+
 export const AuthRoutes = router;

@@ -20,6 +20,7 @@ import type {
 	IRegisterPatientPayload,
 	IResetPasswordPayload,
 	IRequestUser,
+	IVerifyPatientEmailPayload,
 } from "./auth.interface";
 import { redisClient } from "../../lib/redis";
 import { transporter } from "../../lib/nodemailer";
@@ -41,16 +42,116 @@ const registerPatient = async (payload: IRegisterPatientPayload) => {
 
 	const hashedPassword = await bcrypt.hash(password, 8);
 
+	const experirationTimeInSeconds = 60 * 5; // 5 minutes
+
+	const otpKey = `register-patient-otp-${email}`;
+	const otpValue = crypto.randomInt(100000, 999999).toString();
+
+	await redisClient.set(otpKey, otpValue, {
+		expiration: {
+			type: "EX",
+			value: experirationTimeInSeconds,
+		},
+	});
+
+	const patientRegistrationKey = `register-patient-data-${email}`;
+	const redisUserDataPayload = {
+		name,
+		email,
+		password: hashedPassword,
+		patient: patientData,
+	}
+
+	await redisClient.set(patientRegistrationKey, JSON.stringify(redisUserDataPayload), {
+		expiration: {
+			type: "EX",
+			value: experirationTimeInSeconds,
+		},
+	});
+
+
+	const templatePath = path.join(process.cwd(), "src/app/templates/register-patient-otp.ejs");
+
+	const templateData = {
+		name,
+		email,
+		otpValue,
+		expiration: experirationTimeInSeconds / 60, // Convert seconds to minutes
+	};
+
+	const html = await ejs.renderFile(
+		templatePath,
+		templateData
+	);
+
+	await transporter.sendMail({
+		from: config.email_sender,
+		to: email,
+		subject: "Email Verification OTP",
+		html: html,
+	});
+};
+
+const  verifyPatientEmail = async (payload: IVerifyPatientEmailPayload) => {
+
+	const otp = payload.otp;
+
+	const email = payload.email.trim().toLowerCase();
+
+	const isUserExists = await prisma.user.findUnique({
+		where: { email },
+	});
+	// if(isUserExists){
+	// 	throw new Error("User with this email already exists");
+	// }
+
+	if (isUserExists?.emailVerified) {
+		throw new Error("User email is already verified");
+	}
+
+	if(isUserExists?.status === UserStatus.BLOCKED){
+		throw new Error("User is blocked");
+	}
+
+	if(isUserExists?.isDeleted || isUserExists?.status === UserStatus.DELETED){
+		throw new Error("User is deleted");
+	}
+
+
+	const otpKey = `register-patient-otp-${email}`;
+	const redisOtp = await redisClient.get(otpKey);
+
+	if (!redisOtp) {
+		throw new Error("Invalid or expired OTP");
+	}
+
+	if (redisOtp !== otp) {
+		throw new Error("Invalid OTP");
+	}
+
+	await redisClient.del(otpKey);
+
+	const patientRegistrationKey = `register-patient-data-${email}`;
+	const redisPatientData = await redisClient.get(patientRegistrationKey);
+
+	if (!redisPatientData) {
+		throw new Error("Patient registration data not found or expired");
+	}
+
+	const patientPayload: IRegisterPatientPayload = JSON.parse(redisPatientData);
+
 	const createdUser = await prisma.user.create({
 		data: {
-			name,
-			email,
-			password: hashedPassword,
+			name: patientPayload.name,
+			email : patientPayload.email,
+			password: patientPayload.password,
 			role: Role.PATIENT,
 			status: UserStatus.ACTIVE,
-			emailVerified: false,
+			emailVerified: true,
 			patient: {
-				create: { name, email, contactNumber: patientData?.contactNumber || "" },
+				create: { name: patientPayload.name,
+						 email: patientPayload.email, 
+						 contactNumber: patientPayload?.patient?.contactNumber || "" },
 			},
 		},
 		omit: { password: true },
@@ -83,7 +184,8 @@ const registerPatient = async (payload: IRegisterPatientPayload) => {
 		accessToken,
 		refreshToken,
 	};
-};
+
+}
 
 const loginUser = async (payload: ILoginUserPayload) => {
 	const { password } = payload;
@@ -468,21 +570,27 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 
 	await redisClient.del(key);
 
+	const templatePath = path.join(process.cwd(), "src/app/templates/reset-password-success.ejs");
+
+	const html = await ejs.renderFile(
+		templatePath,
+		{
+			name: isUserExists.name,
+		}
+	);
+
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: isUserExists.email,
 		subject: "Password Change Successful",
-		// text: "Your password has been reset successfully.",
-		html: `
-			<h1>Password Change Successful</h1>
-			<p>Your password has been changed successfully.</p>
-		`,
+		html: html,
 	});
 
 }
 
 export const AuthService = {
 	registerPatient,
+	verifyPatientEmail,
 	loginUser,
 	getMe,
 	refreshToken,
