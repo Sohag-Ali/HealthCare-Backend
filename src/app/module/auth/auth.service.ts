@@ -28,7 +28,7 @@ import ejs from "ejs";
 
 
 const registerPatient = async (payload: IRegisterPatientPayload) => {
-	const { name, password, patient : patientData } = payload;
+	const { name, password, patient: patientData } = payload;
 
 	const email = payload.email.trim().toLowerCase();
 
@@ -92,7 +92,7 @@ const registerPatient = async (payload: IRegisterPatientPayload) => {
 	});
 };
 
-const  verifyPatientEmail = async (payload: IVerifyPatientEmailPayload) => {
+const verifyPatientEmail = async (payload: IVerifyPatientEmailPayload) => {
 
 	const otp = payload.otp;
 
@@ -109,11 +109,11 @@ const  verifyPatientEmail = async (payload: IVerifyPatientEmailPayload) => {
 		throw new Error("User email is already verified");
 	}
 
-	if(isUserExists?.status === UserStatus.BLOCKED){
+	if (isUserExists?.status === UserStatus.BLOCKED) {
 		throw new Error("User is blocked");
 	}
 
-	if(isUserExists?.isDeleted || isUserExists?.status === UserStatus.DELETED){
+	if (isUserExists?.isDeleted || isUserExists?.status === UserStatus.DELETED) {
 		throw new Error("User is deleted");
 	}
 
@@ -143,19 +143,42 @@ const  verifyPatientEmail = async (payload: IVerifyPatientEmailPayload) => {
 	const createdUser = await prisma.user.create({
 		data: {
 			name: patientPayload.name,
-			email : patientPayload.email,
+			email: patientPayload.email,
 			password: patientPayload.password,
 			role: Role.PATIENT,
 			status: UserStatus.ACTIVE,
 			emailVerified: true,
 			patient: {
-				create: { name: patientPayload.name,
-						 email: patientPayload.email, 
-						 contactNumber: patientPayload?.patient?.contactNumber || "" },
+				create: {
+					name: patientPayload.name,
+					email: patientPayload.email,
+					contactNumber: patientPayload?.patient?.contactNumber || ""
+				},
 			},
 		},
 		omit: { password: true },
 		include: { patient: true },
+	});
+
+	await redisClient.del(patientRegistrationKey);
+
+	const templatePath = path.join(process.cwd(), "src/app/templates/patient-welcome-email.ejs");
+
+	const templateData = {
+		name: createdUser.name,
+		email: createdUser.email,
+	};
+
+	const html = await ejs.renderFile(
+		templatePath,
+		templateData
+	);
+
+	await transporter.sendMail({
+		from: config.email_sender,
+		to: createdUser.email,
+		subject: "Welcome to Ph Healthcare Platform",
+		html: html,
 	});
 
 	const { patient, ...user } = createdUser;
@@ -402,7 +425,28 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 						},
 					},
 				},
-				
+
+
+
+			});
+
+			const templatePath = path.join(process.cwd(), "src/app/templates/patient-welcome-email.ejs");
+
+			const templateData = {
+				name: user.name,
+				email: user.email,
+			};
+
+			const html = await ejs.renderFile(
+				templatePath,
+				templateData
+			);
+
+			await transporter.sendMail({
+				from: config.email_sender,
+				to: user.email,
+				subject: "Welcome to Ph Healthcare Platform",
+				html: html,
 			});
 		}
 	}
@@ -444,12 +488,12 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 	};
 };
 
-const forgetPassword =  async (payload: IForgetPasswordPayload) => {
+const forgetPassword = async (payload: IForgetPasswordPayload) => {
 
-	const {email} = payload;
+	const { email } = payload;
 
 	const isUserExists = await prisma.user.findUnique({
-		where: { 
+		where: {
 			email
 		},
 	});
@@ -458,32 +502,32 @@ const forgetPassword =  async (payload: IForgetPasswordPayload) => {
 		throw new Error("User not found");
 	}
 
-	if(isUserExists.status === UserStatus.BLOCKED){
+	if (isUserExists.status === UserStatus.BLOCKED) {
 		throw new Error("User is blocked");
 	}
 
-	if(!isUserExists.emailVerified){
+	if (!isUserExists.emailVerified) {
 		throw new Error("User email is not verified");
 	}
 
-	if(isUserExists.isDeleted || isUserExists.status === UserStatus.DELETED){
+	if (isUserExists.isDeleted || isUserExists.status === UserStatus.DELETED) {
 		throw new Error("User is deleted");
 	}
 
-	if(isUserExists.authProvider !== AuthProvider.CREDENTIAL){
+	if (isUserExists.authProvider !== AuthProvider.CREDENTIAL) {
 		throw new Error("User is registered with Google. Please use Google login.");
 	}
 
-	const otp =  crypto.randomInt(100000, 999999).toString();
+	const otp = crypto.randomInt(100000, 999999).toString();
 
 	const key = `forget-password-otp-${isUserExists.email}`;
 
 	const experirationTimeInSeconds = 60 * 5; // 5 minutes
 
 	await redisClient.set(key, otp, {
-		expiration : {
+		expiration: {
 			type: "EX",
-			value: experirationTimeInSeconds, 
+			value: experirationTimeInSeconds,
 		}
 	});
 
@@ -493,10 +537,10 @@ const forgetPassword =  async (payload: IForgetPasswordPayload) => {
 		templatePath,
 		{
 			name: isUserExists.name,
-			 otp,
-			 expiration: experirationTimeInSeconds / 60, // Convert seconds to minutes
+			otp,
+			expiration: experirationTimeInSeconds / 60, // Convert seconds to minutes
 
-		 }
+		}
 		// async (err, html) => {
 		// 	if (err) {
 		// 		console.error("Error rendering EJS template:", err);
@@ -518,10 +562,10 @@ const forgetPassword =  async (payload: IForgetPasswordPayload) => {
 
 const resetPassword = async (payload: IResetPasswordPayload) => {
 
-	const {email, otp, newPassword} = payload;
+	const { email, otp, newPassword } = payload;
 
 	const isUserExists = await prisma.user.findUnique({
-		where: { 
+		where: {
 			email
 		},
 	});
@@ -530,19 +574,19 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 		throw new Error("User not found");
 	}
 
-	if(isUserExists.status === UserStatus.BLOCKED){
+	if (isUserExists.status === UserStatus.BLOCKED) {
 		throw new Error("User is blocked");
 	}
 
-	if(!isUserExists.emailVerified){
+	if (!isUserExists.emailVerified) {
 		throw new Error("User email is not verified");
 	}
 
-	if(isUserExists.isDeleted || isUserExists.status === UserStatus.DELETED){
+	if (isUserExists.isDeleted || isUserExists.status === UserStatus.DELETED) {
 		throw new Error("User is deleted");
 	}
 
-	if(isUserExists.authProvider !== AuthProvider.CREDENTIAL){
+	if (isUserExists.authProvider !== AuthProvider.CREDENTIAL) {
 		throw new Error("User is registered with Google. Please use Google login.");
 	}
 
@@ -560,12 +604,12 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 	const hashedNewPassword = await bcrypt.hash(newPassword, Number(config.bcrypt_salt_rounds));
 
 	await prisma.user.update({
-		where: { 
-			email : isUserExists.email
-		}, 
-		data: { 
+		where: {
+			email: isUserExists.email
+		},
+		data: {
 			password: hashedNewPassword
-		 }
+		}
 	});
 
 	await redisClient.del(key);
