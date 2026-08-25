@@ -78,7 +78,7 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
     });
 
     if(currentUser?.image_PublicId && currentUser?.image_PublicId){
-        await cloudinary.uploader.destroy(currentUser.image_PublicId);
+        await cloudinary.uploader.destroy(currentUser.image_PublicId); 
     }
 
     console.log(updatedUser, "updatedUser");
@@ -91,3 +91,5 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
 export const UserService = {
     uploadProfileImage,
 };
+
+ 
