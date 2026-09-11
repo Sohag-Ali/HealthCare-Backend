@@ -13,6 +13,10 @@ export interface IRegisterPatientPayload {
 		contactNumber?: string;
 	};
 }
+export interface IVerifyEmailPayload {
+	email: string;
+	otp: string;
+}
 
 export interface IRequestUser {
 	userId: string;
@@ -25,17 +29,11 @@ export interface IGoogleLoginPayload {
 	idToken: string;
 }
 
-export interface IForgetPasswordPayload {
+export interface IForgotPasswordPayload {
 	email: string;
 }
-
 export interface IResetPasswordPayload {
 	email: string;
 	newPassword: string;
-	otp: string;
-}
-
-export interface IVerifyPatientEmailPayload {
-	email: string;
 	otp: string;
 }

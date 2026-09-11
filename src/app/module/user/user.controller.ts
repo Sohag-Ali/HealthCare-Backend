@@ -1,29 +1,28 @@
-import { ca } from "zod/locales";
-import { catchAsync } from "../../utils/catchAsync";
-import { NextFunction, Request, Response } from "express";
-import { sendResponse } from "../../utils/sendResponse";
+import type { Request, Response } from "express";
 import httpStatus from "http-status";
-import { UserService } from "./user.service";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { UserServices } from "./user.service";
 
-const uploadProfileImage = catchAsync(async (req : Request, res: Response, next: NextFunction) => {
+const uploadProfileImage = catchAsync(async (req: Request, res: Response) => {
+	if (!req.file) {
+		throw new Error("No File Provided.");
+	}
 
-    if (!req.file) {
-        throw new Error("No file uploaded");
-    }
+	const userId = req.user?.userId;
 
-    const userId = req.user?.userId; // Assuming you have user ID in the request object
-
-    const result = await UserService.uploadProfileImage(req.file?.buffer, userId!);
-
-    sendResponse(res, {
-		statusCode: httpStatus.CREATED,
+	const result = await UserServices.uploadProfileImage(
+		req.file?.buffer,
+		userId!,
+	);
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
 		success: true,
-		message: "Profile image uploaded successfully",
+		message: "New tokens generated successfully",
 		data: result,
 	});
-
-})
+});
 
 export const UserController = {
-    uploadProfileImage,
+	uploadProfileImage,
 };

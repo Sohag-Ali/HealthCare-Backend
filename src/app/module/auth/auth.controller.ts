@@ -4,23 +4,21 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import type { IRequestUser } from "./auth.interface";
 import { AuthService } from "./auth.service";
-import z from "zod";
-
 
 const registerPatient = catchAsync(async (req: Request, res: Response) => {
-	// const payload = PatientValidation.patientRegistrationZodshema.safeParse(req.body);
+	// const payload = PatientValidation.PatientRegistrationZodSchema.safeParse(req.body);
 
-	// if (!payload.success) {
-	// 	let errorMessage = "";
-	// 	payload.error.issues.forEach((issue) => {
-	// 		errorMessage = errorMessage + issue.message;
-	// 	});
-	// 	throw new Error(errorMessage);
+	// if(!payload.success){
+	// 	console.log(payload.error);
+	// 	console.log(payload.error.issues);
+
+	// 	throw new Error(payload.error.issues[0].message)
 	// }
+
+	// console.log(payload);
 
 	const payload = req.body;
 
-	// const result = 
 	await AuthService.registerPatient(payload);
 
 	// const { accessToken, refreshToken, user, patient } = result;
@@ -41,13 +39,11 @@ const registerPatient = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.CREATED,
 		success: true,
-		message: "Verification email sent successfully. Please check your email to verify your account.",
+		message: "Verification OTP Sent",
 		data: null,
 	});
 });
-
 const verifyPatientEmail = catchAsync(async (req: Request, res: Response) => {
-	
 	const payload = req.body;
 
 	const result = await AuthService.verifyPatientEmail(payload);
@@ -70,18 +66,15 @@ const verifyPatientEmail = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.CREATED,
 		success: true,
-		message: "Patient email verified successfully",
+		message: "Email Verified Successfully",
 		data: {
 			accessToken,
 			refreshToken,
 			user,
 			patient,
-		}
+		},
 	});
 });
-
-
-
 
 const loginUser = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
@@ -188,20 +181,18 @@ const googleLogin = catchAsync(async (req: Request, res: Response) => {
 		},
 	});
 });
-
-const forgetPassword = catchAsync(async (req: Request, res: Response) => {
+const forgotPassword = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
 
-	await AuthService.forgetPassword(payload);
+	await AuthService.forgotPassword(payload);
 
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: `OTP sent to ${payload.email} successfully`,
+		message: `OTP Sent To Email : ${payload.email}`,
 		data: null,
 	});
 });
-
 const resetPassword = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
 
@@ -210,7 +201,7 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "Password changed successfully",
+		message: "Password Changed Successfully",
 		data: null,
 	});
 });
@@ -222,6 +213,6 @@ export const AuthController = {
 	getMe,
 	refreshToken,
 	googleLogin,
-	forgetPassword,
+	forgotPassword,
 	resetPassword,
 };

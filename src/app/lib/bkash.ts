@@ -2,99 +2,113 @@ import config from "../config";
 import { redisClient } from "./redis";
 
 export const getBkashIdToken = async () => {
+	try {
+		const IdTokenKey = "bkash:idToken";
+		const RefreshTokenKey = "bkash:refreshToken";
 
-   try {
+		let bkashIdToken = await redisClient.get(IdTokenKey);
+		const bkashIdTokenTTL = await redisClient.ttl(IdTokenKey);
 
-     const IdTokenKey = "bkash:isToken";
-    const RefreshTokenKey = "bkash:refreshToken";
+		const bkashRefreshToken = await redisClient.get(RefreshTokenKey);
+		const bkashRefreshTokenTTL = await redisClient.ttl(RefreshTokenKey);
 
+		// console.log({
+		//     bkashIdToken,
+		//     bkashIdTokenTTL,
+		//     bkashRefreshToken,
+		//     bkashRefreshTokenTTL
+		// });
 
-    let bkashIdToken = await redisClient.get(IdTokenKey);
-     const bkashIdTokenTTL = await redisClient.ttl(IdTokenKey);
-    const bkashRefreshToken = await redisClient.get(RefreshTokenKey);
+		//bkash id token remaining time is less than equal 10 minutes or bkash id is expired
+		// bkash refresh token must exist
+		// bkash refresh token remaining time is more than 10 minutes
+		if (
+			(bkashIdTokenTTL <= 600 || !bkashIdToken) &&
+			bkashRefreshToken &&
+			bkashRefreshTokenTTL > 600
+		) {
+			const refreshTokenResponse = await fetch(
+				`${config.bkash_base_url}/tokenized/checkout/token/refresh`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Accept: "application/json",
+						username: config.bkash_username,
+						password: config.bkash_password,
+					},
+					body: JSON.stringify({
+						app_key: config.bkash_app_key,
+						app_secret: config.bkash_app_secret,
+						refresh_token: bkashRefreshToken,
+					}),
+				},
+			);
+			if (!refreshTokenResponse.ok) {
+				throw new Error("Bkash Access Token Grant Failed");
+			}
 
-    const bkashRefreshTokenTTL = await redisClient.ttl(RefreshTokenKey);
+			const bkashRefreshTokenResult = await refreshTokenResponse.json();
 
-    // console.log("bkashIdToken:", bkashIdToken);
-    // console.log("bkashIdTokenTTL:", bkashIdTokenTTL);
-    // console.log("bkashRefreshToken:", bkashRefreshToken);
-    // console.log("bkashRefreshTokenTTL:", bkashRefreshTokenTTL);
-   
+			bkashIdToken = bkashRefreshTokenResult.id_token as string;
 
-    if((!bkashIdToken || bkashIdTokenTTL <= 600) && bkashRefreshToken && bkashRefreshTokenTTL > 600) {
-         const refreshTokenResponse = await fetch(`${config.bkash_base_url}/tokenized/checkout/token/refresh`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            username: config.bkash_username,
-            password: config.bkash_password,
-        },
-        body: JSON.stringify({
-            app_key: config.bkash_app_key,
-            app_secret: config.bkash_app_secret,
-            refresh_token: bkashRefreshToken,
-        }),
-    });
+			await redisClient.set(IdTokenKey, bkashIdToken, {
+				expiration: {
+					type: "EX",
+					value: 60 * 60,
+				},
+			});
 
-    const bkashRefreshResult = await refreshTokenResponse.json();
+			return bkashIdToken;
+		}
 
-    bkashIdToken = bkashRefreshResult.id_token as string;
+		if (bkashIdTokenTTL > 600) {
+			return bkashIdToken;
+		}
 
-    await redisClient.set(IdTokenKey, bkashIdToken, {
-        expiration: {
-            type: "EX",
-            value: 60 * 60, // 1 hour in seconds
-        },
-    });
+		const response = await fetch(
+			`${config.bkash_base_url}/tokenized/checkout/token/grant`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Accept: "application/json",
+					username: config.bkash_username,
+					password: config.bkash_password,
+				},
+				body: JSON.stringify({
+					app_key: config.bkash_app_key,
+					app_secret: config.bkash_app_secret,
+				}),
+			},
+		);
 
-    return bkashIdToken;
+		if (!response.ok) {
+			throw new Error("Bkash Access Token Grant Failed");
+		}
 
-    }
+		const result = await response.json();
 
-    if (bkashIdTokenTTL > 600) {
-        return bkashIdToken;
-    }
+		//bkash id token set
+		await redisClient.set(IdTokenKey, result.id_token, {
+			expiration: {
+				type: "EX",
+				value: 60 * 60, // 1hour
+			},
+		});
 
-    const response = await fetch(`${config.bkash_base_url}/tokenized/checkout/token/grant`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            username: config.bkash_username,
-            password: config.bkash_password,
-        },
-        body: JSON.stringify({
-            app_key: config.bkash_app_key,
-            app_secret: config.bkash_app_secret,
-        }),
-    });
+		//bkash refresh token set
+		await redisClient.set(RefreshTokenKey, result.refresh_token, {
+			expiration: {
+				type: "EX",
+				value: 60 * 60 * 24 * 28, // 28 days
+			},
+		});
 
-    if (!response.ok) {
-        throw new Error(`Failed to get Bkash ID token: ${response.statusText}`);
-    }
+		bkashIdToken = result.id_token;
 
-    const result = await response.json();
-
-    await redisClient.set(IdTokenKey, result.id_token, {
-        expiration: {
-            type: "EX",
-            value: 3600, // 1 hour in seconds
-        },
-    });
-
-    await redisClient.set(RefreshTokenKey, result.refresh_token, {
-        expiration: {
-            type: "EX",
-            value: 60 * 60 * 24 * 28, // 1 hour in seconds
-        },
-    });
-   
-    bkashIdToken = result.id_token;
-
-    return bkashIdToken;
-
-   }catch (error : any) {
-    throw new Error(`Error in getBkashIdToken: ${error.message}`);
-   }
-}
+		return bkashIdToken;
+	} catch (error: any) {
+		throw new Error(error.message);
+	}
+};

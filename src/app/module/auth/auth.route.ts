@@ -1,39 +1,67 @@
-import { Request, Response, NextFunction, Router } from "express";
+import { Router } from "express";
 import { Role } from "../../../generated/prisma/enums";
 import { auth } from "../../middleware/checkAuth";
+import { validateRequest } from "../../middleware/validateRequest";
 import { AuthController } from "./auth.controller";
 import { UserValidation } from "./auth.validation";
-import { catchAsync } from "../../utils/catchAsync";
-import z from "zod";
-import { validateRequest } from "../../middleware/valideteRequest";
 
 const router = Router();
 
+router.post(
+	"/register",
+	// (req : Request, res : Response, next : NextFunction) => {
 
+	// 	try {
+	// 		// const payload = req.body ? req.body : {}
+	// 		const payload = req.body ?? {}
 
-router.post("/register",
-	validateRequest(UserValidation.patientRegistrationZodshema),
-	AuthController.registerPatient);
+	// 		const result = PatientValidation.PatientRegistrationZodSchema.safeParse(payload);
 
-router.post("/verify-email",
-	validateRequest(UserValidation.patientEmailVerificationZodSchema),
-	AuthController.verifyPatientEmail);
+	// 		if (!result.success) {
+	// 			console.log(result.error);
+	// 			console.log(result.error.issues);
 
-router.post("/login",
+	// 			throw new Error(result.error.issues[0].message)
+	// 		}
+
+	// 		req.body = result.data
+
+	// 		next()
+	// 	} catch (error) {
+
+	// 		next(error)
+	// 	}
+	// },
+
+	validateRequest(UserValidation.PatientRegistrationZodSchema),
+	AuthController.registerPatient,
+);
+router.post(
+	"/verify-email",
+	validateRequest(UserValidation.PatientEmailVerifyZodSchema),
+	AuthController.verifyPatientEmail,
+);
+router.post(
+	"/login",
 	validateRequest(UserValidation.LoginZodSchema),
-	AuthController.loginUser);
+	AuthController.loginUser,
+);
 router.get(
 	"/me",
 	auth(Role.ADMIN, Role.DOCTOR, Role.PATIENT, Role.SUPER_ADMIN),
+	// validateRequest
 	AuthController.getMe,
 );
 router.post("/refresh-token", AuthController.refreshToken);
 router.post("/google", AuthController.googleLogin);
-router.post("/forgot-password",
-	validateRequest(UserValidation.forgetPasswordZodSchema),
-	AuthController.forgetPassword);
-router.post("/reset-password",
-	validateRequest(UserValidation.resetPasswordZodSchema),
-	AuthController.resetPassword);
-
+router.post(
+	"/forgot-password",
+	validateRequest(UserValidation.ForgotPasswordZodSchema),
+	AuthController.forgotPassword,
+);
+router.post(
+	"/reset-password",
+	validateRequest(UserValidation.ResetPasswordZodSchema),
+	AuthController.resetPassword,
+);
 export const AuthRoutes = router;

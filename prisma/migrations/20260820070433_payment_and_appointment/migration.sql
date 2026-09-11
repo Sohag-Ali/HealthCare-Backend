@@ -22,13 +22,13 @@ CREATE TABLE "payments" (
     "currency" TEXT NOT NULL DEFAULT 'BDT',
     "paymentGateway" TEXT NOT NULL DEFAULT 'bkash',
     "merchantInvoiceNumber" TEXT NOT NULL,
-    "bkashPaymnentId" TEXT,
-    "bkashTransactionId" TEXT,
+    "bkashPaymentId" TEXT,
+    "bkashTrxId" TEXT,
     "payerReference" TEXT,
     "paidAt" TEXT,
     "gatewayResponse" JSONB,
     "refundTrxId" TEXT,
-    "refundAmount" DECIMAL(10,2),
+    "refundAmount" DECIMAL(10,2) NOT NULL,
     "refundReason" TEXT,
     "refundedAt" TEXT,
     "appointmentId" TEXT NOT NULL,
@@ -42,13 +42,7 @@ CREATE TABLE "payments" (
 CREATE UNIQUE INDEX "payments_merchantInvoiceNumber_key" ON "payments"("merchantInvoiceNumber");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "payments_bkashPaymnentId_key" ON "payments"("bkashPaymnentId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "payments_bkashTransactionId_key" ON "payments"("bkashTransactionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "payments_refundTrxId_key" ON "payments"("refundTrxId");
+CREATE UNIQUE INDEX "payments_bkashPaymentId_key" ON "payments"("bkashPaymentId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "payments_appointmentId_key" ON "payments"("appointmentId");

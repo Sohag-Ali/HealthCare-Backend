@@ -1,95 +1,94 @@
-import { UploadApiResponse } from "cloudinary";
+import type { UploadApiResponse } from "cloudinary";
 import { cloudinary } from "../../lib/cloudinary";
 import { prisma } from "../../lib/prisma";
 
-
 const uploadProfileImage = async (buffer: Buffer, userId: string) => {
+	// const cloudinaryResult = cloudinary.uploader.upload_stream(
+	//     {
+	//         resource_type : "auto"
+	//     },
 
-    // cloudinary.uploader.upload_stream(
-    //     {
-    //         resource_type: "auto",
-    //     },
-    //     async(error, result) => {
-    //         if (error) {
-    //             console.error("Error uploading image to Cloudinary:", error);
-    //             throw new Error("Failed to upload image");
-    //         }
-    //         console.log( result, "result" );
+	//     async (error, result) => {
+	//         if(error){
+	//             console.log(error);
+	//             throw new Error(error.message)
+	//         }
 
-    //         const updatedUser = await prisma.user.update({
-    //             where: { 
-    //                 id: userId 
-    //             },
-    //             data: { 
-    //                 imageUrl: result?.secure_url ,
-    //                 image_PublicId: result?.public_id,
-    //              },
-    //         })
+	//         console.log(result, "result");
 
-    //         console.log(updatedUser, "updatedUser");
-    //         // return result;
-    //     }
-    // ).end(buffer);
+	//         const updatedUser = await prisma.user.update({
+	//             where : {
+	//                 id : userId
+	//             },
 
+	//             data: {
+	//                 imageUrl : result?.secure_url,
+	//                 imagePublicId : result?.public_id
+	//             }
+	//         })
 
-    const currentUser = await prisma.user.findUnique({
-        where: {
-            id: userId
-        },
-        select: {
-            image_PublicId: true,
-            imageUrl: true,
-        }
-    });
+	//         console.log(updatedUser);
 
+	//         // return result
+	//     }
+	// ).end(buffer)
 
-    const cloudinaryResult = await new Promise<UploadApiResponse>((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-            {
-                resource_type: "auto",
-            },
-            async (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
+	const currentUser = await prisma.user.findUnique({
+		where: {
+			id: userId,
+		},
+		select: {
+			imagePublicId: true,
+			imageUrl: true,
+		},
+	});
 
-                if (!result) {
-                    return reject(new Error("No result returned from Cloudinary"));
-                }
+	const cloudinaryResult = await new Promise<UploadApiResponse>(
+		(resolve, reject) => {
+			cloudinary.uploader
+				.upload_stream(
+					{
+						resource_type: "auto",
+					},
 
-                resolve(result);
+					async (error, result) => {
+						if (error) {
+							return reject(error);
+						}
 
-            }
-        ).end(buffer);
-    });
+						if (!result) {
+							return reject(new Error("No result returned from Cloudinary"));
+						}
 
+						resolve(result);
+					},
+				)
+				.end(buffer);
+		},
+	);
 
-    const updatedUser = await prisma.user.update({
-        where: {
-            id: userId
-        },
-        data: {
-            imageUrl: cloudinaryResult?.secure_url,
-            image_PublicId: cloudinaryResult?.public_id,
-        },
-        omit: {
-            password: true,
-        },
-    });
+	const updatedUser = await prisma.user.update({
+		where: {
+			id: userId,
+		},
 
-    if(currentUser?.image_PublicId && currentUser?.image_PublicId){
-        await cloudinary.uploader.destroy(currentUser.image_PublicId); 
-    }
+		data: {
+			imageUrl: cloudinaryResult.secure_url,
+			imagePublicId: cloudinaryResult.public_id,
+		},
 
-    console.log(updatedUser, "updatedUser");
-    // return result;
-  
-    return updatedUser;
+		omit: {
+			password: true,
+		},
+	});
 
-}
+	if (currentUser?.imagePublicId && currentUser.imageUrl) {
+		await cloudinary.uploader.destroy(currentUser.imagePublicId);
+	}
 
-export const UserService = {
-    uploadProfileImage,
+	return updatedUser;
 };
 
- 
+export const UserServices = {
+	uploadProfileImage,
+};

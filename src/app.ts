@@ -1,17 +1,20 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express, { NextFunction, type Application, type Request, type Response } from "express";
+import express, {
+	type Application,
+	type NextFunction,
+	type Request,
+	type Response,
+} from "express";
 import httpStatus from "http-status";
 import config from "./app/config";
+import { getBkashIdToken } from "./app/lib/bkash";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
-import { AuthRoutes } from "./app/module/auth/auth.route";
-import z from "zod";
-import { redisClient } from "./app/lib/redis";
-import { UserRoutes } from "./app/module/user/user.route";
-import { getBkashIdToken } from "./app/lib/bkash";
 import { AppointementRoutes } from "./app/module/appointment/appointment.route";
-
+import { AuthRoutes } from "./app/module/auth/auth.route";
+import { DoctorRoutes } from "./app/module/doctor/doctor.route";
+import { UserRoutes } from "./app/module/user/user.route";
 
 const app: Application = express();
 
@@ -32,21 +35,21 @@ app.use(cookieParser());
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/user", UserRoutes);
 app.use("/api/v1/appointment", AppointementRoutes);
+app.use("/api/v1/doctor", DoctorRoutes);
 
-app.get("/test",async (req: Request, res: Response, next: NextFunction) => {
-
-	try{
-
+app.get("/test", async (req: Request, res: Response, next: NextFunction) => {
+	try {
 		const grantIdTokenResult = await getBkashIdToken();
-		console.log("grantIdTokenResult", grantIdTokenResult);
 
-	res.status(httpStatus.OK).json({
-		success: true,
-		message: "Bkash Id Token Grant Successful",
-		data: grantIdTokenResult,
-	});
+		console.log(grantIdTokenResult);
+
+		res.status(httpStatus.OK).json({
+			success: true,
+			message: "Welcome to PH Healthcare System Backend",
+			data: null,
+		});
 	} catch (error) {
-		console.log("Bkash Id Token Grant Failed", error);
+		console.log(error);
 		next(error);
 	}
 });
@@ -55,7 +58,7 @@ app.get("/test",async (req: Request, res: Response, next: NextFunction) => {
 app.get("/", async (req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({
 		success: true,
-		message: "Welcome to PH Healthcare System Backend Test",
+		message: "Welcome to PH Healthcare System Backend",
 	});
 });
 
